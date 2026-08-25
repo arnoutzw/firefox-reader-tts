@@ -18,6 +18,7 @@ function validateTtsEndpoint(value) {
 
 async function extractArticle(tabId) {
   await browser.scripting.executeScript({ target: { tabId }, files: ["vendor/readability.js"] });
+  await browser.scripting.executeScript({ target: { tabId }, files: ["src/lead-image.js"] });
   const results = await browser.scripting.executeScript({ target: { tabId }, files: ["content/extractor.js"] });
   const article = results?.[0]?.result;
   if (!article || !String(article.textContent || "").trim()) throw new Error("Reader mode could not find a main article on this page.");

@@ -1,4 +1,4 @@
-/* global Readability */
+/* global Readability, ReaderTtsLeadImage */
 
 (() => {
   try {
@@ -14,9 +14,9 @@
     const readerPixelTarget = 720 * Math.min(2, Math.max(1, Number(devicePixelRatio) || 1));
     const imageSource = (image) => {
       const srcsetUrl = (value) => {
-        const candidates = String(value || "").split(",").map((entry) => {
-          const [candidate, descriptor = ""] = entry.trim().split(/\s+/u);
-          const src = safeHttpUrl(candidate);
+        const candidates = ReaderTtsLeadImage.parseSrcsetCandidates(value).map((entry) => {
+          const src = safeHttpUrl(entry.url);
+          const descriptor = entry.descriptor;
           const match = descriptor.match(/^(\d+(?:\.\d+)?)(w|x)$/u);
           const resolution = match ? (match[2] === "w" ? Number(match[1]) : Number(match[1]) * 720) : 720;
           return src && Number.isFinite(resolution) && resolution > 0 ? { src, resolution } : null;
@@ -80,6 +80,31 @@
       if (height) block.height = height;
       return block;
     };
+    const metaContent = (selector) => String(document.querySelector(selector)?.getAttribute("content") || "").trim();
+    const metadataLeadUrl = safeHttpUrl(metaContent('meta[property="og:image"]') || metaContent('meta[name="twitter:image"]') || metaContent('meta[name="thumbnail"]'));
+    let metadataLeadImage = null;
+    if (metadataLeadUrl) {
+      const originalImage = Array.from(document.querySelectorAll("article figure img, main article img")).find((image) =>
+        ReaderTtsLeadImage.sameImageAsset(imageSource(image), metadataLeadUrl, document.baseURI || location.href));
+      if (originalImage) {
+        const originalFigure = originalImage.closest("figure");
+        const caption = originalFigure
+          ? Array.from(originalFigure.children).find((child) => child.tagName.toLowerCase() === "figcaption")?.textContent || ""
+          : "";
+        metadataLeadImage = imageBlock(originalImage, caption);
+      } else {
+        const width = imageDimension(metaContent('meta[property="og:image:width"]'));
+        const height = imageDimension(metaContent('meta[property="og:image:height"]'));
+        metadataLeadImage = {
+          type: "image",
+          src: metadataLeadUrl,
+          alt: metaContent('meta[property="og:image:alt"]') || metaContent('meta[name="twitter:image:alt"]'),
+          caption: ""
+        };
+        if (width) metadataLeadImage.width = width;
+        if (height) metadataLeadImage.height = height;
+      }
+    }
     const figureBlocks = new WeakMap();
     for (const figure of parsedDocument.body.querySelectorAll("figure")) {
       const images = Array.from(figure.querySelectorAll("img")).filter((image) => image.closest("figure") === figure)
@@ -126,6 +151,7 @@
             : (tag === "blockquote" || element.closest("blockquote")) ? "quote" : "paragraph";
       addBlock({ type, text });
     }
+    if (ReaderTtsLeadImage.shouldPrependLeadImage(metadataLeadImage, blocks, document.baseURI || location.href)) blocks.unshift(metadataLeadImage);
     const textContent = blocks.length ? blocks.map((block) => (block.type === "image" || block.type === "image-group") ? block.caption : block.text).filter(Boolean).join("\n\n") : (parsed.textContent || "");
     return {
       title: parsed.title || document.title || "Untitled article",

@@ -17,6 +17,8 @@ Only a user-triggered active tab is inspected. Article text and the optional tok
 
 Article figures appear inline immediately with validated dimensions, alt text, and captions, but image pixels load only after the user presses the hostname-labelled button. The control discloses that redirects may contact another host, reports loading or failure without losing keyboard focus, and supports retry. This prevents Reader TTS from silently re-contacting image or tracking hosts. Requests use lazy decoding and no referrer; responsive candidates are selected near the 720px reader width, while obvious hidden/tiny beacons and non-HTTP(S) URLs are discarded.
 
+When Readability omits a lead figure that sits outside its cleaned article body, Reader TTS can recover the image from matching Open Graph metadata and the original article figure. Cloudflare image-transform URLs are matched to their underlying asset, including `srcset` URLs whose transformation options contain commas. Recovery is deduplicated against figures already retained by Readability.
+
 ## Install and run
 
 1. Install Docker, then run `docker compose up -d` in this directory. The included profile binds only to `127.0.0.1:5050`, requires the token `reader-local`, and configures `en-US-AvaMultilingualNeural`.
