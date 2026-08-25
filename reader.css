@@ -104,6 +104,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .appearance-label { line-height: 1.2; }
 .font-size-buttons { display: grid; grid-template-columns: 1fr minmax(54px, auto) 1fr; align-items: center; gap: 5px; }
 .size-button { justify-content: center; min-width: 36px; padding-inline: 10px; font-size: 17px; }
+.appearance-read-aloud { width: 100%; }
 #font-size-value { color: var(--ink); font-size: 13px; font-variant-numeric: tabular-nums; text-align: center; }
 .gesture-help { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: .82rem; }
 .reader { min-height: calc(100vh - 125px); padding: 60px 16px 100px; }
@@ -138,6 +139,6 @@ h1 { margin: 0 0 22px; font: 700 clamp(2rem, 4vw, 3.2rem)/1.12 var(--reader-font
 .player-inner { display: flex; align-items: center; gap: 8px; min-height: 70px; }
 #player-status { margin-left: auto; color: var(--muted); font-size: .88rem; }
 @media (min-width: 701px) and (max-width: 1251px) { .appearance-panel { right: 16px; left: 16px; width: auto; grid-template-columns: 1fr 1fr minmax(150px, .7fr); } .reader { padding-top: 165px; } }
-@media (max-width: 700px) { .settings-inner { grid-template-columns: 1fr 1fr; } .settings-inner label:nth-child(n + 3), .settings-inner button { grid-column: 1 / -1; } .appearance-panel { top: 62px; right: 12px; left: 12px; width: auto; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 14px; padding: 11px 12px; } .font-size-control { grid-column: 1 / -1; grid-template-columns: auto 1fr; align-items: center; } .font-size-buttons { justify-self: end; width: 150px; } .appearance-panel.faded { transform: translateY(-8px); } .appearance-panel.faded:hover, .appearance-panel.faded:focus-within { transform: translateY(0); } .reader { padding-top: 190px; } .player-inner { flex-wrap: wrap; min-height: 62px; padding: 8px 0; } #player-status { margin-left: auto; } }
+@media (max-width: 700px) { .settings-inner { grid-template-columns: 1fr 1fr; } .settings-inner label:nth-child(n + 3), .settings-inner button { grid-column: 1 / -1; } .appearance-panel { top: 62px; right: 12px; left: 12px; width: auto; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 14px; padding: 11px 12px; } .font-size-control, .appearance-read-aloud { grid-column: 1 / -1; } .font-size-control { grid-template-columns: auto 1fr; align-items: center; } .font-size-buttons { justify-self: end; width: 150px; } .appearance-panel.faded { transform: translateY(-8px); } .appearance-panel.faded:hover, .appearance-panel.faded:focus-within { transform: translateY(0); } .reader { padding-top: 230px; } .player-inner { flex-wrap: wrap; min-height: 62px; padding: 8px 0; } #player-status { margin-left: auto; } }
 @media (max-width: 430px) { .toolbar-inner, .settings-inner, .player-inner { width: min(100% - 20px, 940px); } .toolbar-title { display: none; } .icon-button span { display: none; } .player-inner { gap: 5px; } .player-inner button { padding: 6px 8px; } }
 @media (prefers-reduced-motion: reduce) { .appearance-panel { transition: none; } }

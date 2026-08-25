@@ -1,7 +1,15 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { SpeechController, createTrackpadGestureController, estimatePlaybackToken, loadReaderImage, normalizeReaderAppearance, normalizeReaderBlocks, playbackTokens, splitForTts, validateLocalEndpoint } = require("../reader.js");
+const { SpeechController, createTrackpadGestureController, estimatePlaybackToken, isSameOriginReaderImage, loadReaderImage, normalizeReaderAppearance, normalizeReaderBlocks, playbackTokens, splitForTts, validateLocalEndpoint } = require("../reader.js");
+
+test("automatically loads only images with the article's exact origin", () => {
+  const source = "https://www.economist.com/business/article";
+  assert.equal(isSameOriginReaderImage("https://www.economist.com/image.jpg", source), true);
+  assert.equal(isSameOriginReaderImage("https://cdn.economist.com/image.jpg", source), false);
+  assert.equal(isSameOriginReaderImage("http://www.economist.com/image.jpg", source), false);
+  assert.equal(isSameOriginReaderImage("not a URL", source), false);
+});
 
 test("normalizes supported reader appearance choices and preserves them", () => {
   for (const theme of ["white", "sepia", "gray", "black"]) {

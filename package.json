@@ -1,7 +1,7 @@
 {
   "name": "firefox-reader-tts",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Firefox reader extension with a local openai-edge-tts client",
   "scripts": {
     "test": "node --test"

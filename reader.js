@@ -8,7 +8,7 @@
   const sessionId = query.get("sessionId");
   const autoplay = query.get("autoplay") === "1";
   const startupError = query.get("error");
-  const ids = ["article", "article-title", "article-byline", "article-content", "article-source", "loading", "error", "play-button", "pause-button", "stop-button", "player-status", "voice", "speed", "speed-value", "endpoint", "api-key", "settings", "settings-button", "archive-button"];
+  const ids = ["article", "article-title", "article-byline", "article-content", "article-source", "loading", "error", "appearance-read-aloud", "play-button", "pause-button", "stop-button", "player-status", "voice", "speed", "speed-value", "endpoint", "api-key", "settings", "settings-button", "archive-button"];
   const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
   let articleText = "";
   let articleSourceUrl = "";
@@ -54,6 +54,7 @@
   initializeAppearanceFade();
   el["archive-button"].addEventListener("click", loadArchiveSnapshot);
   el["play-button"].addEventListener("click", startReading);
+  el["appearance-read-aloud"].addEventListener("click", startReading);
   el["pause-button"].addEventListener("click", () => controller?.togglePause());
   el["stop-button"].addEventListener("click", () => controller?.stop());
   document.addEventListener("wheel", gestures.handleWheel, { passive: false });
@@ -137,7 +138,7 @@
       appendReaderTokens(container, block.text, tokenElements);
       return container;
     }));
-    for (const name of ["play-button", "pause-button", "stop-button"]) el[name].disabled = false;
+    for (const name of ["appearance-read-aloud", "play-button", "pause-button", "stop-button"]) el[name].disabled = false;
     playbackHighlighter = createPlaybackHighlighter(tokenElements);
     controller = new SpeechController(createClient(), setPlayerStatus, (index) => playbackHighlighter.set(index));
   }
@@ -146,7 +147,7 @@
     const figure = document.createElement("figure");
     figure.className = "article-image";
     const images = block.type === "image-group" ? block.images : [block];
-    const deferred = [];
+    const imageEntries = [];
     for (const imageBlock of images) {
       const frame = document.createElement("div");
       frame.className = "article-image-frame";
@@ -165,16 +166,16 @@
       image.addEventListener("error", () => figure.classList.add("image-unavailable"), { once: true });
       frame.append(image);
       figure.append(frame);
-      deferred.push({ image, src: imageBlock.src });
+      imageEntries.push({ image, src: imageBlock.src });
     }
-    if (deferred.length) {
-      const hosts = [...new Set(deferred.map((entry) => readerImageHostname(entry.src)).filter(Boolean))];
+    const addImageLoadControl = (initialEntries, automatic = false) => {
+      const hosts = [...new Set(initialEntries.map((entry) => readerImageHostname(entry.src)).filter(Boolean))];
       const loadButton = document.createElement("button");
       const status = document.createElement("span");
       loadButton.type = "button";
       loadButton.className = "load-image-button";
       loadButton.dataset.loadImage = "";
-      loadButton.textContent = `Load image${deferred.length === 1 ? "" : "s"} from ${hosts.join(" and ")} (may redirect)`;
+      loadButton.textContent = `Load image${initialEntries.length === 1 ? "" : "s"} from ${hosts.join(" and ")} (may redirect)`;
       loadButton.title = "Images may redirect and contact another host.";
       loadButton.setAttribute("aria-label", `${loadButton.textContent}. Images may redirect and contact another host.`);
       loadButton.setAttribute("aria-disabled", "false");
@@ -182,8 +183,8 @@
       status.dataset.imageStatus = "";
       status.setAttribute("role", "status");
       status.setAttribute("aria-live", "polite");
-      let failed = deferred;
-      loadButton.addEventListener("click", async () => {
+      let failed = initialEntries;
+      const load = async () => {
         if (loadButton.getAttribute("aria-disabled") === "true") return;
         const loading = failed;
         loadButton.setAttribute("aria-disabled", "true");
@@ -202,14 +203,29 @@
           status.textContent = `Could not load ${failed.length === 1 ? "the image" : "some images"}. Try again.`;
         } else {
           figure.classList.remove("image-unavailable");
+          if (automatic) {
+            loadButton.remove();
+            status.remove();
+            return;
+          }
           loadButton.dataset.imageState = "loaded";
-          loadButton.textContent = `${deferred.length === 1 ? "Image" : "Images"} loaded from ${hosts.join(" and ")}`;
+          loadButton.textContent = `${initialEntries.length === 1 ? "Image" : "Images"} loaded from ${hosts.join(" and ")}`;
           loadButton.setAttribute("aria-label", loadButton.textContent);
-          status.textContent = `${deferred.length === 1 ? "Image" : "Images"} loaded from ${hosts.join(" and ")}.`;
+          status.textContent = `${initialEntries.length === 1 ? "Image" : "Images"} loaded from ${hosts.join(" and ")}.`;
         }
-      });
+      };
+      loadButton.addEventListener("click", load);
+      loadButton.hidden = automatic;
       figure.append(loadButton);
       figure.append(status);
+      if (automatic) void load().then(() => { if (failed.length) loadButton.hidden = false; });
+    };
+    const automaticEntries = imageEntries.filter((entry) => isSameOriginReaderImage(entry.src, articleSourceUrl));
+    const consentEntries = imageEntries.filter((entry) => !isSameOriginReaderImage(entry.src, articleSourceUrl));
+    if (consentEntries.length) addImageLoadControl(consentEntries);
+    if (automaticEntries.length) {
+      for (const entry of automaticEntries) entry.image.loading = "eager";
+      addImageLoadControl(automaticEntries, true);
     }
     if (block.caption) {
       const caption = document.createElement("figcaption");
@@ -346,6 +362,7 @@
     el.error.textContent = error?.message || String(error);
     el.error.hidden = false;
     el["play-button"].disabled = true;
+    el["appearance-read-aloud"].disabled = true;
     setPlayerStatus("Unavailable");
   }
 })();
@@ -539,6 +556,14 @@ function readerImageHostname(value) {
   try { return new URL(value).hostname; } catch (_) { return ""; }
 }
 
+function isSameOriginReaderImage(imageUrl, sourceUrl) {
+  try {
+    return new URL(String(imageUrl)).origin === new URL(String(sourceUrl)).origin;
+  } catch (_) {
+    return false;
+  }
+}
+
 function createTrackpadGestureController({ canSeek = () => true, onSeek = () => undefined, onScale = () => undefined, threshold = 80, pinchThreshold = 24 } = {}) {
   let horizontalDistance = 0;
   let pinchDistance = 0;
@@ -672,4 +697,4 @@ function splitForTts(text, maxLength = 1800, firstChunkLength = Math.min(320, ma
   return [first, ...continuation];
 }
 
-if (typeof module === "object" && module.exports) module.exports = { SpeechController, createTrackpadGestureController, estimatePlaybackToken, loadReaderImage, normalizeReaderAppearance, normalizeReaderBlocks, playbackTokens, safeReaderImageUrl, splitForTts, validateLocalEndpoint };
+if (typeof module === "object" && module.exports) module.exports = { SpeechController, createTrackpadGestureController, estimatePlaybackToken, isSameOriginReaderImage, loadReaderImage, normalizeReaderAppearance, normalizeReaderBlocks, playbackTokens, safeReaderImageUrl, splitForTts, validateLocalEndpoint };
