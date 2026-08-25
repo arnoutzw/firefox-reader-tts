@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en" data-reader-theme="sepia" data-reader-font="serif">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reader TTS</title>
+  <link rel="stylesheet" href="reader.css">
+</head>
+<body>
+  <header class="toolbar">
+    <div class="toolbar-inner">
+      <button id="back-button" class="icon-button" type="button" title="Close reader">← <span>Back</span></button>
+      <div class="toolbar-title">Reader TTS</div>
+      <div class="toolbar-actions">
+        <button id="archive-button" class="icon-button" type="button" title="Load the newest archive.ph snapshot">Archive.ph</button>
+        <button id="settings-button" class="icon-button" type="button" aria-expanded="false" aria-controls="settings">⚙ <span>Settings</span></button>
+      </div>
+    </div>
+  </header>
+
+  <section id="settings" class="settings" hidden>
+    <div class="settings-inner">
+      <label for="voice">Voice
+        <select id="voice">
+          <option value="en-US-AvaMultilingualNeural">Ava Multilingual</option>
+          <option value="en-US-EmmaMultilingualNeural">Emma Multilingual</option>
+          <option value="en-US-AndrewMultilingualNeural">Andrew Multilingual</option>
+          <option value="en-US-AvaNeural">Ava (English)</option>
+        </select>
+      </label>
+      <label for="speed">Speed <output id="speed-value">1×</output>
+        <input id="speed" type="range" min="0.5" max="2" step="0.1" value="1">
+      </label>
+      <label for="endpoint">Local TTS endpoint
+        <input id="endpoint" type="url" inputmode="url" spellcheck="false" value="http://127.0.0.1:5050/v1/audio/speech">
+      </label>
+      <label for="api-key">API key (optional)
+        <input id="api-key" type="password" autocomplete="off" spellcheck="false" value="reader-local" placeholder="Only if your service requires one">
+      </label>
+      <button id="save-settings" class="secondary-button" type="button">Save settings</button>
+      <button id="clear-settings" class="secondary-button" type="button">Clear settings</button>
+      <p class="gesture-help">Magic Trackpad: swipe left/right with two fingers to skip 10 seconds while playing; pinch to resize article text.</p>
+    </div>
+  </section>
+
+  <aside id="appearance-panel" class="appearance-panel" aria-label="Reading appearance">
+    <fieldset class="appearance-control">
+      <legend>Background</legend>
+      <div id="theme-options" class="theme-options" role="group" aria-label="Article background">
+        <button class="appearance-choice" type="button" aria-pressed="false" data-reader-theme="white">
+          <span class="theme-swatch theme-swatch-white" aria-hidden="true"></span>White
+        </button>
+        <button class="appearance-choice" type="button" aria-pressed="true" data-reader-theme="sepia">
+          <span class="theme-swatch theme-swatch-sepia" aria-hidden="true"></span>Sepia
+        </button>
+        <button class="appearance-choice" type="button" aria-pressed="false" data-reader-theme="gray">
+          <span class="theme-swatch theme-swatch-gray" aria-hidden="true"></span>Gray
+        </button>
+        <button class="appearance-choice" type="button" aria-pressed="false" data-reader-theme="black">
+          <span class="theme-swatch theme-swatch-black" aria-hidden="true"></span>Black
+        </button>
+      </div>
+    </fieldset>
+    <fieldset class="appearance-control font-control">
+      <legend>Font</legend>
+      <div id="font-options" class="theme-options" role="group" aria-label="Article font">
+        <button class="appearance-choice font-serif" type="button" aria-pressed="true" data-reader-font="serif">Serif</button>
+        <button class="appearance-choice font-sans" type="button" aria-pressed="false" data-reader-font="sans">Sans</button>
+        <button class="appearance-choice font-georgia" type="button" aria-pressed="false" data-reader-font="georgia">Georgia</button>
+        <button class="appearance-choice font-palatino" type="button" aria-pressed="false" data-reader-font="palatino">Palatino</button>
+      </div>
+    </fieldset>
+    <div class="font-size-control" role="group" aria-label="Article text size">
+      <span class="appearance-label">Text size</span>
+      <div class="font-size-buttons">
+        <button id="font-size-down" class="appearance-choice size-button" type="button" aria-label="Decrease text size">−</button>
+        <output id="font-size-value" aria-live="polite">100%</output>
+        <button id="font-size-up" class="appearance-choice size-button" type="button" aria-label="Increase text size">+</button>
+      </div>
+    </div>
+  </aside>
+
+  <main id="reader" class="reader" aria-live="polite">
+    <div id="loading" class="message">Preparing this article…</div>
+    <article id="article" hidden>
+      <p id="article-byline" class="byline"></p>
+      <h1 id="article-title"></h1>
+      <p class="source"><a id="article-source" target="_blank" rel="noopener noreferrer"></a></p>
+      <div id="article-content" class="article-content"></div>
+    </article>
+    <div id="error" class="message error" hidden></div>
+  </main>
+
+  <footer class="player" aria-label="Read aloud controls">
+    <div class="player-inner">
+      <button id="play-button" class="primary-button" type="button" disabled>▶ Read aloud</button>
+      <button id="pause-button" class="secondary-button" type="button" disabled>Pause</button>
+      <button id="stop-button" class="secondary-button" type="button" disabled>Stop</button>
+      <span id="player-status" role="status">Ready</span>
+    </div>
+  </footer>
+
+  <script src="src/tts-client.js"></script>
+  <script src="reader.js"></script>
+</body>
+</html>

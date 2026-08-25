@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Reader TTS",
+  "version": "1.0.0",
+  "description": "Extract a clean article view and read it aloud with a local OpenAI Edge TTS service.",
+  "permissions": ["activeTab", "scripting", "storage", "menus", "tabs"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "action": {
+    "default_title": "Article View",
+    "default_icon": "icons/article-view.svg",
+    "default_area": "navbar"
+  },
+  "page_action": {
+    "default_title": "Open with Reader TTS",
+    "default_icon": "icons/article-view.svg"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Ctrl+Alt+R" },
+      "description": "Open the current article in Reader TTS"
+    },
+    "read-aloud-current-article": {
+      "suggested_key": { "default": "Ctrl+Shift+U" },
+      "description": "Read the current article aloud"
+    }
+  },
+  "background": { "scripts": ["src/archive-support.js", "src/reader-view.js", "background.js"] },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'" },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "reader-tts-article-view@local.openai-edge-tts",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["websiteContent"],
+        "optional": ["authenticationInfo"]
+      }
+    }
+  }
+}

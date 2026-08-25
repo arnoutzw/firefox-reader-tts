@@ -1,0 +1,18 @@
+services:
+  openai-edge-tts:
+    image: travisvn/openai-edge-tts:latest
+    container_name: firefox-reader-openai-edge-tts
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${TTS_PORT:-5050}:5050"
+    environment:
+      API_KEY: ${TTS_API_KEY:-reader-local}
+      PORT: 5050
+      DEFAULT_VOICE: en-US-AvaMultilingualNeural
+      DEFAULT_RESPONSE_FORMAT: mp3
+      DEFAULT_SPEED: 1.0
+      DEFAULT_LANGUAGE: en-US
+      REQUIRE_API_KEY: "True"
+      REMOVE_FILTER: "False"
+      EXPAND_API: "True"
+      DETAILED_ERROR_LOGGING: "False"
