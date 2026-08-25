@@ -78,7 +78,14 @@
         <button id="font-size-up" class="appearance-choice size-button" type="button" aria-label="Increase text size">+</button>
       </div>
     </div>
-    <button id="appearance-read-aloud" class="primary-button appearance-read-aloud" type="button" disabled>▶ Read aloud</button>
+    <div class="panel-player" aria-label="Read aloud controls">
+      <div class="panel-player-buttons">
+        <button id="play-button" class="primary-button" type="button" disabled>▶ Read aloud</button>
+        <button id="pause-button" class="secondary-button" type="button" disabled>Pause</button>
+        <button id="stop-button" class="secondary-button" type="button" disabled>Stop</button>
+      </div>
+      <span id="player-status" role="status">Ready</span>
+    </div>
   </aside>
 
   <main id="reader" class="reader" aria-live="polite">
@@ -91,15 +98,6 @@
     </article>
     <div id="error" class="message error" hidden></div>
   </main>
-
-  <footer class="player" aria-label="Read aloud controls">
-    <div class="player-inner">
-      <button id="play-button" class="primary-button" type="button" disabled>▶ Read aloud</button>
-      <button id="pause-button" class="secondary-button" type="button" disabled>Pause</button>
-      <button id="stop-button" class="secondary-button" type="button" disabled>Stop</button>
-      <span id="player-status" role="status">Ready</span>
-    </div>
-  </footer>
 
   <script src="src/tts-client.js"></script>
   <script src="reader.js"></script>

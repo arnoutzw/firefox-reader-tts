@@ -8,7 +8,7 @@
   const sessionId = query.get("sessionId");
   const autoplay = query.get("autoplay") === "1";
   const startupError = query.get("error");
-  const ids = ["article", "article-title", "article-byline", "article-content", "article-source", "loading", "error", "appearance-read-aloud", "play-button", "pause-button", "stop-button", "player-status", "voice", "speed", "speed-value", "endpoint", "api-key", "settings", "settings-button", "archive-button"];
+  const ids = ["article", "article-title", "article-byline", "article-content", "article-source", "loading", "error", "play-button", "pause-button", "stop-button", "player-status", "voice", "speed", "speed-value", "endpoint", "api-key", "settings", "settings-button", "archive-button"];
   const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
   let articleText = "";
   let articleSourceUrl = "";
@@ -54,7 +54,6 @@
   initializeAppearanceFade();
   el["archive-button"].addEventListener("click", loadArchiveSnapshot);
   el["play-button"].addEventListener("click", startReading);
-  el["appearance-read-aloud"].addEventListener("click", startReading);
   el["pause-button"].addEventListener("click", () => controller?.togglePause());
   el["stop-button"].addEventListener("click", () => controller?.stop());
   document.addEventListener("wheel", gestures.handleWheel, { passive: false });
@@ -138,7 +137,7 @@
       appendReaderTokens(container, block.text, tokenElements);
       return container;
     }));
-    for (const name of ["appearance-read-aloud", "play-button", "pause-button", "stop-button"]) el[name].disabled = false;
+    for (const name of ["play-button", "pause-button", "stop-button"]) el[name].disabled = false;
     playbackHighlighter = createPlaybackHighlighter(tokenElements);
     controller = new SpeechController(createClient(), setPlayerStatus, (index) => playbackHighlighter.set(index));
   }
@@ -362,7 +361,6 @@
     el.error.textContent = error?.message || String(error);
     el.error.hidden = false;
     el["play-button"].disabled = true;
-    el["appearance-read-aloud"].disabled = true;
     setPlayerStatus("Unavailable");
   }
 })();
