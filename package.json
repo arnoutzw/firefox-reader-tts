@@ -1,7 +1,7 @@
 {
   "name": "firefox-reader-tts",
   "private": true,
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Firefox reader extension with direct Microsoft Edge TTS synthesis",
   "scripts": {
     "test": "node --test"
