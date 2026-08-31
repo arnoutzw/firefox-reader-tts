@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Reader TTS",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Extract a clean article view and read it aloud with Microsoft Edge TTS.",
   "permissions": ["activeTab", "scripting", "storage", "menus", "tabs", "webRequest", "webRequestBlocking"],
   "host_permissions": ["https://speech.platform.bing.com/*", "wss://speech.platform.bing.com/*"],

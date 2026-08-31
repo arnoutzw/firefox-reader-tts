@@ -8,7 +8,7 @@
   const sessionId = query.get("sessionId");
   const autoplay = query.get("autoplay") === "1";
   const startupError = query.get("error");
-  const ids = ["article", "article-title", "article-byline", "article-content", "article-source", "loading", "error", "play-button", "pause-button", "stop-button", "diagnostics-button", "player-status", "voice", "speed", "speed-value", "settings", "settings-button", "archive-button"];
+  const ids = ["article", "article-title", "article-byline", "article-content", "article-source", "loading", "error", "play-button", "pause-button", "stop-button", "save-audio-button", "diagnostics-button", "player-status", "voice", "speed", "speed-value", "settings", "settings-button", "archive-button"];
   const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
   let articleText = "";
   let articleSourceUrl = "";
@@ -62,6 +62,7 @@
   });
   el["pause-button"].addEventListener("click", () => controller?.togglePause());
   el["stop-button"].addEventListener("click", () => controller?.stop());
+  el["save-audio-button"].addEventListener("click", saveArticleAudio);
   document.addEventListener("wheel", gestures.handleWheel, { passive: false });
   browser.runtime.onMessage.addListener((message) => {
     if (message?.type !== "archive-interaction-required" || message.requestId !== archiveRequestId) return;
@@ -138,8 +139,25 @@
       return container;
     }));
     for (const name of ["play-button", "pause-button", "stop-button"]) el[name].disabled = false;
+    el["save-audio-button"].disabled = true;
     playbackHighlighter = createPlaybackHighlighter(tokenElements);
-    controller = new SpeechController(createClient(), setPlayerStatus, (index) => playbackHighlighter.set(index));
+    controller = new SpeechController(createClient(), setPlayerStatus, (index) => playbackHighlighter.set(index), (available) => {
+      el["save-audio-button"].disabled = !available;
+      el["save-audio-button"].title = available ? "Download the complete article as an MP3" : "Available after the full article has finished playing";
+    });
+  }
+
+  function saveArticleAudio() {
+    const audio = controller?.wholeArticleAudio();
+    if (!audio) { setPlayerStatus("Finish reading the article before saving audio"); return; }
+    const title = (el["article-title"].textContent || "reader-tts-article").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) || "reader-tts-article";
+    const url = URL.createObjectURL(audio);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${title}.mp3`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setPlayerStatus("Saving complete article audio…");
   }
 
   function createReaderFigure(block, tokenElements) {
@@ -394,11 +412,14 @@ function loadReaderImage(entry, timeoutMs = 15000) {
 }
 
 class SpeechController {
-  constructor(client, setStatus, setPlaybackToken = () => undefined) { this.client = client; this.setStatus = setStatus; this.setPlaybackToken = setPlaybackToken; this.audio = null; this.objectUrl = null; this.generation = 0; this.requestId = null; this.waitResolve = null; this.cleanupAudio = null; this.updatePlaybackToken = null; this.stopped = true; }
+  constructor(client, setStatus, setPlaybackToken = () => undefined, setSaveAvailable = () => undefined) { this.client = client; this.setStatus = setStatus; this.setPlaybackToken = setPlaybackToken; this.setSaveAvailable = setSaveAvailable; this.audio = null; this.objectUrl = null; this.generation = 0; this.requestId = null; this.waitResolve = null; this.cleanupAudio = null; this.updatePlaybackToken = null; this.stopped = true; this.articleAudioParts = []; this.articleAudioComplete = false; }
   async start(text, options) {
     this.stop(false);
     const generation = ++this.generation;
     this.stopped = false;
+    this.articleAudioParts = [];
+    this.articleAudioComplete = false;
+    this.setSaveAvailable(false);
     const chunks = splitForTts(text);
     if (!chunks.length) { this.stopped = true; this.setStatus("Finished"); return; }
     const tokenOffsets = [];
@@ -418,6 +439,7 @@ class SpeechController {
       if (prepared.error) { if (generation !== this.generation) return; throw prepared.error; }
       const blob = prepared.blob;
       if (generation !== this.generation) return;
+      this.articleAudioParts.push(blob);
       pending = index + 1 < chunks.length ? prepare(index + 1) : null;
       const objectUrl = URL.createObjectURL(blob);
       this.objectUrl = objectUrl;
@@ -461,7 +483,7 @@ class SpeechController {
         this.audio.addEventListener("error", finish);
       });
     }
-    if (generation === this.generation) { this.audio = null; this.stopped = true; this.setPlaybackToken(null); this.setStatus("Finished"); }
+    if (generation === this.generation) { this.audio = null; this.stopped = true; this.articleAudioComplete = true; this.setSaveAvailable(true); this.setPlaybackToken(null); this.setStatus("Finished"); }
   }
   togglePause() {
     if (!this.audio) return;
@@ -485,8 +507,15 @@ class SpeechController {
     if (this.cleanupAudio) this.cleanupAudio();
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
     this.audio = null; this.objectUrl = null; this.requestId = null;
+    this.articleAudioParts = [];
+    this.articleAudioComplete = false;
+    this.setSaveAvailable(false);
     this.setPlaybackToken(null);
     if (updateStatus) this.setStatus("Stopped");
+  }
+  wholeArticleAudio() {
+    if (!this.articleAudioComplete || !this.articleAudioParts.length) return null;
+    return new Blob(this.articleAudioParts, { type: "audio/mpeg" });
   }
 }
 
