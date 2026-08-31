@@ -8,7 +8,7 @@
   const sessionId = query.get("sessionId");
   const autoplay = query.get("autoplay") === "1";
   const startupError = query.get("error");
-  const ids = ["article", "article-title", "article-byline", "article-content", "article-source", "loading", "error", "play-button", "pause-button", "stop-button", "player-status", "voice", "speed", "speed-value", "endpoint", "api-key", "settings", "settings-button", "archive-button"];
+  const ids = ["article", "article-title", "article-byline", "article-content", "article-source", "loading", "error", "play-button", "pause-button", "stop-button", "diagnostics-button", "player-status", "voice", "speed", "speed-value", "settings", "settings-button", "archive-button"];
   const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
   let articleText = "";
   let articleSourceUrl = "";
@@ -54,6 +54,12 @@
   initializeAppearanceFade();
   el["archive-button"].addEventListener("click", loadArchiveSnapshot);
   el["play-button"].addEventListener("click", startReading);
+  el["diagnostics-button"].addEventListener("click", async () => {
+    const diagnostics = await browser.runtime.sendMessage({ type: "tts-diagnostics" }).catch((error) => `Diagnostics could not be retrieved: ${error?.message || error}`);
+    el.error.textContent = `TTS diagnostics:\n${diagnostics}`;
+    el.error.hidden = false;
+    el.error.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
   el["pause-button"].addEventListener("click", () => controller?.togglePause());
   el["stop-button"].addEventListener("click", () => controller?.stop());
   document.addEventListener("wheel", gestures.handleWheel, { passive: false });
@@ -84,31 +90,25 @@
   }).catch(showFatalError);
 
   async function loadSettings() {
-    const saved = await browser.storage.local.get(["ttsEndpoint", "ttsVoice", "ttsSpeed", "ttsApiKey", "readerFontScale", "readerTheme", "readerFont"]);
-    if (saved.ttsEndpoint) el.endpoint.value = saved.ttsEndpoint;
+    const saved = await browser.storage.local.get(["ttsVoice", "ttsSpeed", "readerFontScale", "readerTheme", "readerFont"]);
     if (saved.ttsVoice) el.voice.value = saved.ttsVoice;
     if (saved.ttsSpeed) el.speed.value = String(saved.ttsSpeed);
-    if (saved.ttsApiKey !== undefined) el["api-key"].value = saved.ttsApiKey;
     if (saved.readerFontScale !== undefined) setReaderFontScale(saved.readerFontScale);
     setReaderAppearance(saved.readerTheme, saved.readerFont);
     el.speed.dispatchEvent(new Event("input"));
   }
 
   async function saveSettings() {
-    const endpoint = validateLocalEndpoint(el.endpoint.value);
     await appearanceWrite.catch(() => undefined);
-    await browser.storage.local.set({ ttsEndpoint: endpoint, ttsVoice: el.voice.value, ttsSpeed: Number(el.speed.value), ttsApiKey: el["api-key"].value, readerFontScale, readerTheme, readerFont });
+    await browser.storage.local.set({ ttsVoice: el.voice.value, ttsSpeed: Number(el.speed.value), readerFontScale, readerTheme, readerFont });
     el["player-status"].textContent = "Settings saved";
-    return endpoint;
   }
 
   async function clearSettings() {
     await appearanceWrite.catch(() => undefined);
     await browser.storage.local.clear();
-    el.endpoint.value = "http://127.0.0.1:5050/v1/audio/speech";
     el.voice.value = "en-US-AvaMultilingualNeural";
     el.speed.value = "1";
-    el["api-key"].value = "reader-local";
     setReaderFontScale(1);
     setReaderAppearance("sepia", "serif");
     el.speed.dispatchEvent(new Event("input"));
@@ -280,8 +280,8 @@
     }
   }
 
-  function createClient(endpoint) {
-    return createReaderTtsClient({ endpoint: endpoint || el.endpoint.value.trim(), voice: el.voice.value, speed: Number(el.speed.value), apiKey: el["api-key"].value });
+  function createClient() {
+    return createReaderTtsClient({ voice: el.voice.value, speed: Number(el.speed.value) });
   }
 
   function setPlayerStatus(value) {
@@ -344,12 +344,14 @@
 
   async function startReading() {
     try {
-      const endpoint = await saveSettings();
-      controller.client = createClient(endpoint);
-      await controller.start(articleText, { voice: el.voice.value, speed: Number(el.speed.value), apiKey: el["api-key"].value });
+      await saveSettings();
+      controller.client = createClient();
+      await controller.start(articleText, { voice: el.voice.value, speed: Number(el.speed.value) });
     } catch (error) {
       if (error?.message === "Speech synthesis was cancelled or timed out." && controller?.stopped) return;
-      el.error.textContent = error?.message || String(error);
+      const message = error?.message || String(error);
+      const diagnostics = await browser.runtime.sendMessage({ type: "tts-diagnostics" }).catch(() => "Diagnostics could not be retrieved.");
+      el.error.textContent = `${message}\n\nDiagnostics:\n${diagnostics}`;
       el.error.hidden = false;
       setPlayerStatus("Playback error");
     }
@@ -648,15 +650,6 @@ function createPlaybackHighlighter(tokenElements) {
   };
 }
 
-function validateLocalEndpoint(value) {
-  let url;
-  try { url = new URL(String(value)); } catch (_) { throw new Error("Enter a valid TTS endpoint URL."); }
-  if (url.protocol !== "http:" || !["localhost", "127.0.0.1"].includes(url.hostname) || url.username || url.password || url.pathname !== "/v1/audio/speech") {
-    throw new Error("Use a local endpoint such as http://127.0.0.1:5050/v1/audio/speech.");
-  }
-  return url.href;
-}
-
 function splitForTts(text, maxLength = 1800, firstChunkLength = Math.min(320, maxLength)) {
   const chunkAtLimit = (source, limit) => {
     const output = [];
@@ -695,4 +688,4 @@ function splitForTts(text, maxLength = 1800, firstChunkLength = Math.min(320, ma
   return [first, ...continuation];
 }
 
-if (typeof module === "object" && module.exports) module.exports = { SpeechController, createTrackpadGestureController, estimatePlaybackToken, isSameOriginReaderImage, loadReaderImage, normalizeReaderAppearance, normalizeReaderBlocks, playbackTokens, safeReaderImageUrl, splitForTts, validateLocalEndpoint };
+if (typeof module === "object" && module.exports) module.exports = { SpeechController, createTrackpadGestureController, estimatePlaybackToken, isSameOriginReaderImage, loadReaderImage, normalizeReaderAppearance, normalizeReaderBlocks, playbackTokens, safeReaderImageUrl, splitForTts };

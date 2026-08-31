@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { SpeechController, createTrackpadGestureController, estimatePlaybackToken, isSameOriginReaderImage, loadReaderImage, normalizeReaderAppearance, normalizeReaderBlocks, playbackTokens, splitForTts, validateLocalEndpoint } = require("../reader.js");
+const { SpeechController, createTrackpadGestureController, estimatePlaybackToken, isSameOriginReaderImage, loadReaderImage, normalizeReaderAppearance, normalizeReaderBlocks, playbackTokens, splitForTts } = require("../reader.js");
 
 test("automatically loads only images with the article's exact origin", () => {
   const source = "https://www.economist.com/business/article";
@@ -167,12 +167,6 @@ test("times out a hanging image quickly, cancels its src, and removes listeners"
 
 test("hard splitting does not break Unicode surrogate pairs", () => {
   assert.deepEqual(splitForTts("😀😀😀", 2), ["😀😀", "😀"]);
-});
-
-test("only the local OpenAI-compatible speech path is accepted", () => {
-  assert.equal(validateLocalEndpoint("http://localhost:5050/v1/audio/speech"), "http://localhost:5050/v1/audio/speech");
-  assert.throws(() => validateLocalEndpoint("https://example.com/v1/audio/speech"), /local endpoint/i);
-  assert.throws(() => validateLocalEndpoint("http://127.0.0.1:5050/voices"), /local endpoint/i);
 });
 
 test("playback position maps to a weighted token within the current audio chunk", () => {

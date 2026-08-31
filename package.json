@@ -2,7 +2,7 @@
   "name": "firefox-reader-tts",
   "private": true,
   "version": "1.0.3",
-  "description": "Firefox reader extension with a local openai-edge-tts client",
+  "description": "Firefox reader extension with direct Microsoft Edge TTS synthesis",
   "scripts": {
     "test": "node --test"
   },

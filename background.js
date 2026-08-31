@@ -1,20 +1,47 @@
-/* global browser, ArchiveSupport, ReaderViewSupport */
+/* global browser, ArchiveSupport, ReaderViewSupport, EdgeTts */
 
 const activeSynthesis = new Map();
 const DEFAULT_VOICE = "en-US-AvaMultilingualNeural";
 const READ_ALOUD_MENU_ID = "reader-tts-read-aloud";
 const { originalUrlFromReaderView, hostPermissionPattern } = ReaderViewSupport;
 const { extractNewestOrCreate, isSnapshotUrl, normalizeSourceUrl } = ArchiveSupport;
+const ttsDiagnostics = [];
+const EDGE_TTS_REQUEST_URLS = [
+  "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1*",
+  "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1*"
+];
 
-function validateTtsEndpoint(value) {
-  let url;
-  try { url = new URL(String(value)); } catch (_) { throw new Error("Enter a valid TTS endpoint URL."); }
-  if (url.username || url.password) throw new Error("Credentials are not allowed in the endpoint URL.");
-  const loopback = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-  if (url.protocol !== "http:" || !loopback) throw new Error("Only a local http://localhost or http://127.0.0.1 TTS service is allowed.");
-  if (url.pathname !== "/v1/audio/speech") throw new Error("The endpoint path must be /v1/audio/speech.");
-  return url.href;
+function recordTtsDiagnostic(stage, detail = "") {
+  const entry = `${new Date().toISOString()} ${stage}${detail ? `: ${detail}` : ""}`;
+  ttsDiagnostics.push(entry);
+  if (ttsDiagnostics.length > 30) ttsDiagnostics.shift();
+  console.info(`[Reader TTS] ${entry}`);
 }
+
+function recentTtsDiagnostics() {
+  return ttsDiagnostics.slice(-12).join("\n") || "No Edge TTS network events were recorded.";
+}
+
+browser.webRequest.onBeforeSendHeaders.addListener(
+  (details) => {
+    const requestHeaders = EdgeTts.handshakeHeaders(details.requestHeaders);
+    recordTtsDiagnostic("handshake rewritten", `request ${details.requestId}; headers: ${requestHeaders.map((header) => header.name).join(", ")}`);
+    return { requestHeaders };
+  },
+  { urls: EDGE_TTS_REQUEST_URLS, types: ["websocket"] },
+  ["blocking", "requestHeaders"]
+);
+
+browser.webRequest.onHeadersReceived.addListener(
+  (details) => recordTtsDiagnostic("handshake response", `request ${details.requestId}; HTTP ${details.statusCode}`),
+  { urls: EDGE_TTS_REQUEST_URLS, types: ["websocket"] },
+  ["responseHeaders"]
+);
+
+browser.webRequest.onErrorOccurred.addListener(
+  (details) => recordTtsDiagnostic("network error", `request ${details.requestId}; ${details.error || "unknown browser network error"}`),
+  { urls: EDGE_TTS_REQUEST_URLS, types: ["websocket"] }
+);
 
 async function extractArticle(tabId) {
   await browser.scripting.executeScript({ target: { tabId }, files: ["vendor/readability.js"] });
@@ -161,37 +188,17 @@ async function synthesize(message) {
   if (!requestId) throw new Error("Missing synthesis request id.");
   const input = String(message.input || "").trim();
   if (!input || Array.from(input).length > 3500) throw new Error("TTS chunks must contain 1–3500 characters.");
-  const endpoint = validateTtsEndpoint(values.endpoint);
   const speed = Number(values.speed || 1);
-  if (!Number.isFinite(speed) || speed < 0.25 || speed > 4) throw new Error("TTS speed must be between 0.25 and 4.0.");
-  const controller = new AbortController();
-  activeSynthesis.set(requestId, controller);
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  if (!Number.isFinite(speed) || speed < 0.5 || speed > 2) throw new Error("TTS speed must be between 0.5 and 2.0.");
+  recordTtsDiagnostic("synthesis requested", `request ${requestId}; ${Array.from(input).length} characters; ${values.voice || DEFAULT_VOICE}`);
+  const synthesis = EdgeTts.createSynthesis({ input, voice: values.voice || DEFAULT_VOICE, speed, requestId, onDiagnostic: recordTtsDiagnostic });
+  activeSynthesis.set(requestId, synthesis);
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      signal: controller.signal,
-      headers: Object.assign({ "Content-Type": "application/json" }, values.apiKey ? { Authorization: `Bearer ${values.apiKey}` } : {}),
-      body: JSON.stringify({ model: "tts-1", input, voice: values.voice || DEFAULT_VOICE, response_format: "mp3", speed, stream_format: "audio" })
-    });
-    if (!response.ok) {
-      let detail = "";
-      try {
-        const body = await response.json();
-        detail = String(body.error?.message || body.error || body.details || "").slice(0, 180);
-      } catch (_) { /* not JSON */ }
-      throw new Error(`TTS service returned ${response.status}${detail ? `: ${detail}` : ""}.`);
-    }
-    const contentType = response.headers.get("content-type") || "";
-    if (!contentType.toLowerCase().startsWith("audio/")) throw new Error("TTS service returned a non-audio response.");
-    const bytes = await response.arrayBuffer();
-    if (!bytes.byteLength) throw new Error("TTS service returned empty audio.");
-    return { bytes, contentType };
+    return await synthesis.promise;
   } catch (error) {
-    if (error?.name === "AbortError") throw new Error("Speech synthesis was cancelled or timed out.");
+    recordTtsDiagnostic("synthesis failed", error?.message || String(error));
     throw error;
   } finally {
-    clearTimeout(timeout);
     activeSynthesis.delete(requestId);
   }
 }
@@ -204,8 +211,11 @@ browser.runtime.onMessage.addListener((message, sender) => {
   }
   if (message?.type === "extract-archive-article") return extractArchiveArticle(message, sender);
   if (message?.type === "tts-synthesize") return synthesize(message);
+  // Firefox only forwards asynchronous onMessage results reliably from an
+  // extension background page, so wrap this string in a Promise.
+  if (message?.type === "tts-diagnostics") return Promise.resolve(recentTtsDiagnostics());
   if (message?.type === "tts-cancel") {
-    activeSynthesis.get(String(message.requestId || ""))?.abort();
+    activeSynthesis.get(String(message.requestId || ""))?.cancel();
     return Promise.resolve();
   }
   if (message?.type === "get-reader-session") {
@@ -259,4 +269,4 @@ browser.menus.onClicked.addListener(async (info, tab) => {
   await browser.tabs.create({ url: browser.runtime.getURL(`reader.html?tabId=${encodeURIComponent(tab.id)}&autoplay=1`) });
 });
 
-if (typeof module === "object" && module.exports) module.exports = { validateTtsEndpoint };
+if (typeof module === "object" && module.exports) module.exports = { synthesize };

@@ -2,9 +2,9 @@
   "manifest_version": 3,
   "name": "Reader TTS",
   "version": "1.0.3",
-  "description": "Extract a clean article view and read it aloud with a local OpenAI Edge TTS service.",
-  "permissions": ["activeTab", "scripting", "storage", "menus", "tabs"],
-  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "description": "Extract a clean article view and read it aloud with Microsoft Edge TTS.",
+  "permissions": ["activeTab", "scripting", "storage", "menus", "tabs", "webRequest", "webRequestBlocking"],
+  "host_permissions": ["https://speech.platform.bing.com/*", "wss://speech.platform.bing.com/*"],
   "optional_host_permissions": ["https://*/*", "http://*/*"],
   "action": {
     "default_title": "Article View",
@@ -25,15 +25,14 @@
       "description": "Read the current article aloud"
     }
   },
-  "background": { "scripts": ["src/archive-support.js", "src/reader-view.js", "background.js"] },
-  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'" },
+  "background": { "scripts": ["src/archive-support.js", "src/reader-view.js", "src/edge-tts.js", "background.js"] },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'; connect-src https://speech.platform.bing.com wss://speech.platform.bing.com" },
   "browser_specific_settings": {
     "gecko": {
-      "id": "reader-tts-article-view@local.openai-edge-tts",
+      "id": "reader-tts-article-view@edge-tts",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
-        "required": ["websiteContent"],
-        "optional": ["authenticationInfo"]
+        "required": ["websiteContent"]
       }
     }
   }
